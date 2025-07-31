@@ -1,0 +1,124 @@
+---
+title: "Your title here"
+author: Student E
+format: docx
+---
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+
+# Load packages
+library(tidyverse)
+
+
+# load the data
+pixar_films <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-03-11/pixar_films.csv')
+public_response <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-03-11/public_response.csv')
+```
+
+## Introduction
+
+This is a dataset about infomation of Pixar films, such as the name of the films, release dates, runtimes(in minutes), etc.
+
+Also, this dataset includes evaluation from four websites, rotten tomatoes, metacritic, cinema_score, and critics_choice.
+
+Though each site is a big scale and very reliable, the evaluation may be different site to site.
+
+And I hypothesized that the longer the film is, the lower the evaluation will be because according to talker research's survey involving 2,000 Americans, the perfect movie length is just 92 minutes.
+
+Here, I analyze this dataset to answer the following questions:
+
+-How much gap can be seen from film to film.
+-What is the correlation between the evaluation and run time like?
+
+
+＊The dataset comes from the {pixarfilms} R package by Eric Leung.
+
+## Data visualization
+
+#evaluation on movies among 3 review sites
+
+```{r}
+score_map <- c("A+"=95, "A"=85, "A-"=75)
+
+public_response <- public_response |>
+  mutate(
+    cinema_score_num = score_map[cinema_score]
+  )
+  
+#long形式へ変換
+long_scores <- public_response |>
+  select(film, rotten_tomatoes, metacritic, cinema_score_num, critics_choice) |>
+  rename(
+    `Rotten Tomatoes` = rotten_tomatoes,
+    `Metacritic` = metacritic,
+    `CinemaScore` = cinema_score_num,
+    `Critics' Choice` = critics_choice
+  ) |>
+  pivot_longer(cols = c(`Rotten Tomatoes`, `Metacritic`, `CinemaScore`, `Critics' Choice`),
+               names_to = "source",
+               values_to = "score")
+
+ggplot(long_scores, aes(x = film, y = score, color = source)) +
+  geom_point(size = 2, position = position_dodge(width = 0.6)) +
+  labs(title = "Comparison of evaluation across four websites",
+       x = "The name of films",
+       y = "Score",
+       color = "Evaluation websites") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#Rationship between evaluation and run_time
+```{r}
+# `runtime` を含む `pixar_films` と結合
+joined <- left_join(public_response, pixar_films, by = "film")
+
+# long形式に変換
+long_corr_data <- joined |>
+  select(film, run_time, rotten_tomatoes, metacritic, cinema_score_num, critics_choice) |>
+  rename(
+    `Rotten Tomatoes` = rotten_tomatoes,
+    `Metacritic` = metacritic,
+    `CinemaScore` = cinema_score_num,
+    `Critics' Choice` = critics_choice
+  ) 
+
+long_corr_data <- long_corr_data %>%
+  pivot_longer(
+    cols = c(`Rotten Tomatoes`, `Metacritic`, `CinemaScore`, `Critics' Choice`),
+    names_to = "source",
+    values_to = "score"
+  )
+
+  ggplot(long_corr_data, aes(x = run_time, y = score, color = source)) +
+  geom_point(size = 2, alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +  
+    scale_x_continuous(limits = c(NA, 125)) + 
+  labs(
+    title = "Correlation between runtime and each rating",
+    x = "Runtime(min)",
+    y = "Score",
+    color = "Evaluation websites"
+  ) +
+  theme_minimal()
+
+
+```
+## Discussion
+
+- What is the **message** in your data visualization?
+
+Graph 1 shows the difference in ratings for each Pixar movie on the movie rating sites.
+
+Looking at this graph, it can be seen that the site's ratings vary quite a bit from movie to movie. For example, WALL-E and Up do not have much variation in their ratings, while Cars2 and Onward have very different ratings.This implies why one movie rating site should not determine how interesting a movie is.
+
+The second graph shows the correlation between film length and film rating scores on a graph.
+
+While CinemaScore showed a slight positive correlation, this could be considered as no correlation. The other three sites showed negative correlations. Perhaps the longer the running time, the lower the film's rating, but more data is needed to confirm this.
+
+## References
+
+-talker research (2024): Research reveals the perfect movie length
